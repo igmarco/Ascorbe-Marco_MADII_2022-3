@@ -1,0 +1,22 @@
+La asignatura será evaluada con la entrega de un informe en el que se analice un conjunto de datos. El informe deberá contener un análisis previo, un análisis de componentes principales, un análisis factorial y un análisis de conglomerados.
+
+El conjunto de datos lo podéis elegir. Podéis buscar en internet conjuntos de datos relacionados con temas que os interesen. También tenéis la opción de crearlos vosotros mismos, por ejemplo, lanzando una encuesta con Microsoft Forms. Si estáis manejando datos (por ejemplo, trabajando en un proyecto o investigando en un trabajo final de estudios) podría ser valioso que los usarais para este trabajo (siempre que contéis con permiso para usarlos).
+
+Quienes prefiráis no consumir tiempo en la búsqueda de datos (puede ser una tarea muy ardua) podéis utilizar uno de los siguientes conjuntos de datos (ambos disponibles en el paquete Stats2Data):
+
+* BlueJays
+* Caterpillars.
+
+La entrega consistirá en un fichero comprimido ZIP que contenga el informe en formato PDF y los scripts de R que reproduzcan los resultados presentados. No es obligatorio trabajar en un proyecto RStudio, aunque se valorará la organización del trabajo. Quienes lo realicen de esta forma, deberán entregar el directorio que contenga el proyecto (en un fichero comprimido ZIP). El informe se podrá editar con el procesador que consideréis: Microsoft Word, LaTeX, RMarkdown, etc.
+
+Los trabajos se pueden realizar por parejas. Las parejas tienen que ser formadas por estudiantes que hayan asistido a clase de manera asidua. Debéis hacerme constar las parejas, podéis escribirme a manuel.higueras@unirioja.es, antes del 14 de enero y les tendré que dar el visto bueno. 
+
+Plazo de entrega: 30 de enero de 2023 a las 23:30 horas. [*]
+
+Instrucciones de entrega:
+
+* Al clicar en el epígrafe de este elemento accederéis al sistema de entrega. En la sección ENTREGA DE ACTIVIDAD podréis adjuntar el fichero ZIP.
+* El nombre del fichero debe tener la siguiente estructura: Apellido_Trabajo_MADII_2022-3. En el caso de las parejas: Apellido1-Apellido2_Trabajo_MADII_2022-3, con los apellidos en orden alfabético.
+* La entrega de una pareja la realizará un único integrante.
+
+[*] Plazo de entrega para evaluación en convocatoria ordinaria. Para evaluación en convocatoria extraordinaria el plazo de entrega será el 24 de febrero de 2023 a las 23:30.
