@@ -1,5 +1,4 @@
 # Paquetes
-
 if(!require(readr)){
   install.packages("readr", dependencies = TRUE, repos='http://cran.rstudio.com/')
   require(readr)
@@ -29,16 +28,6 @@ if(!require(psych)){
 # Importación
 ruta_csv <- "Datos/Brutos/good_reads_final.csv"
 good_reads <- as.data.frame(read_csv(ruta_csv, col_names = TRUE))
-
-# Resúmenes
-colnames(good_reads)
-head(good_reads, 5)
-
-summary(good_reads)
-describe(good_reads)
-
-# Procesamiento de los datos
-good_reads$publish_year <- sapply(good_reads$publish_date, getYear) # Hay alguno que sigue siendo "raro". Siguen siendo strings.
 
 # Subconjuntos
 unique(good_reads$author_gender)
