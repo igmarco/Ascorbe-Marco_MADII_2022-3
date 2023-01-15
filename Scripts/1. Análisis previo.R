@@ -26,8 +26,8 @@ if(!require(psych)){
 # }
 
 # Importación
-ruta_csv <- "Datos/Brutos/good_reads_final.csv"
-good_reads <- as.data.frame(read_csv(ruta_csv, col_names = TRUE))
+ruta_read_rda <- "Datos/Procesados/good_reads_final_preprocesado.rda"
+load(file = ruta_read_rda)
 
 # Subconjuntos
 unique(good_reads$author_gender)
