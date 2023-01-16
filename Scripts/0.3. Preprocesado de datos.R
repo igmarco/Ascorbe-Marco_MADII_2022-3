@@ -221,6 +221,8 @@ good_reads$publish_year[good_reads$publish_year == "by" |
 
 unique(good_reads$publish_year)
 
+good_reads$publish_year <- strtoi(good_reads$publish_year)
+
 good_reads <- select(good_reads,-'publish_date')
 
 # Guardamos los datos preprocesados.
