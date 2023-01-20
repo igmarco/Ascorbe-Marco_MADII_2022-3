@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 El objetivo de este documento es explicar paso por paso el código introducido en los scripts (homónimos al nombre que daremos a cada sección) que se encuentran en la carpeta `/Scripts` del proyecto, correspondientes a la cada una de las fases de estudio del dataset "good_reads_final", disponible en el sitio web de [Kaggle](https://www.kaggle.com/code/jotamaggi/good-reads-author-gender-analysis).
 
-El dataset en cuestión contiene información sobre casi 10.000 libros de literatura extraídos de la página web [GoodReads](https://www.goodreads.com/), donde podemos encontrar los datos relativos a la identificación y detalles del autor y del libro, así como a las valoraciones de ambos. Este dataset nos ha resultado especialmente interesante, ya que, además de esta información, cada registro almacena el lugar de nacimiento y el género del autor, así como la fecha de publicación y los géneros principales del libro.
+El dataset en cuestión contiene información sobre un total de 22.891 libros de literatura extraídos de la página web [GoodReads](https://www.goodreads.com/), donde podemos encontrar los datos relativos a la identificación y detalles del autor y del libro, así como a las valoraciones de ambos. Este dataset nos ha resultado especialmente interesante, ya que, además de esta información, cada registro almacena el lugar de nacimiento y el género del autor, así como la fecha de publicación y los géneros principales del libro.
 
 Una descripción detallada de cada variable podría ser la siguiente:
 
@@ -47,26 +47,26 @@ De estas variables que hemos definido, realmente solo nos interesa trabajar con 
 El primer paso para construir el proyecto es crear la estructura de este. Podemos utilizar el siguiente código (aunque la estructura ya está definida).
 
 ```{r}
-if(!dir.exists("Datos")){
-  dir.create("Datos")
+if(!dir.exists("../Datos")){
+  dir.create("../Datos")
 }
-if(!dir.exists("Datos/Brutos")){
-  dir.create("Datos/Brutos")
+if(!dir.exists("../Datos/Brutos")){
+  dir.create("../Datos/Brutos")
 }
-if(!dir.exists("Datos/Procesados")){
-  dir.create("Datos/Procesados")
-}
-
-if(!dir.exists("Scripts")){
-  dir.create("Scripts")
+if(!dir.exists("../Datos/Procesados")){
+  dir.create("../Datos/Procesados")
 }
 
-if(!dir.exists("Figuras")){
-  dir.create("Figuras")
+if(!dir.exists("../Scripts")){
+  dir.create("../Scripts")
 }
 
-if(!dir.exists("Informes")){
-  dir.create("Informes")
+if(!dir.exists("../Figuras")){
+  dir.create("../Figuras")
+}
+
+if(!dir.exists("../Informes")){
+  dir.create("../Informes")
 }
 ```
 
@@ -434,14 +434,14 @@ good_reads <- select(good_reads,-'publish_date')
 Como tenemos una variable que utiliza como datos vectores (`author_genres`), no podemos exportar los datos a un fichero CSV sin realizar alguna operación antes. Pero, como nuestro objetivo es guardar el DataFrame con los datos procesados, realizamos la copia en un fichero binario RDA que contenga directamente el objeto DataFrame.
 
 ```{r}
-ruta_proc_rda <- "Datos/Procesados/good_reads_final_preprocesado.rda"
+ruta_proc_rda <- "../Datos/Procesados/good_reads_final_preprocesado.rda"
 save(good_reads, file = ruta_proc_rda)
 ```
 
 Podemos comprobar que se ha guardado correctamente volviéndolo a cargar.
 
 ```{r}
-ruta_read_rda <- "Datos/Procesados/good_reads_final_preprocesado.rda"
+ruta_read_rda <- "../Datos/Procesados/good_reads_final_preprocesado.rda"
 load(file = ruta_read_rda)
 
 head(good_reads)
@@ -449,28 +449,498 @@ head(good_reads)
 
 ## 1. Análisis previo
 
+Vamos a estudiar el dataset de forma general. Para ello, veamos la información que nos dan los distintos resúmenes de datos para todo el DataFrame o para submuestras de este y representemos dicha información mediante los gráficos estudiados en la asignatura.
+
+Primero, instalemos los paquetes necesarios para este apartado.
+
+```{r}
+if(!require(readr)){
+  install.packages("readr", dependencies = TRUE, repos='http://cran.rstudio.com/')
+  require(readr)
+}
+if(!require(psych)){
+  install.packages("psych")
+  require(psych)
+}
+if(!require(matrixStats)){
+  install.packages("matrixStats")
+  require(matrixStats)
+}
+
+if(!require(car)){
+  install.packages("car")
+  require(car)
+}
+if(!require(dplyr)){
+  install.packages("dplyr")
+  require(dplyr)
+}
+if(!require(ggplot2)){
+  install.packages("ggplot2")
+  require(ggplot2)
+}
+if(!require(GGally)){
+  install.packages("GGally")
+  require(GGally)
+}
+```
+
+Llevamos a cabo la importación del DataFrame que generamos en la sección anterior.
+
+```{r}
+ruta_read_rda <- "../Datos/Procesados/good_reads_final_preprocesado.rda"
+load(file = ruta_read_rda)
+```
+
+Ahora podemos trabajar con `good_reads` como antes.
+
+```{r}
+head(good_reads, 5)
+```
+
+#### Resúmenes
+
+Veamos un resumen general de las variables.
+
+```{r}
+summary(subset(good_reads, select = -c(author_genres)))
+```
+
+Volvemos a declarar los vectores de variables categóricas y numéricas.
+
+```{r}
+variables_categoricas <- c("author_gender",
+                           "author_genres",
+                           "birthplace",
+                           "genre_1",
+                           "genre_2")
+variables_numericas <- c("author_average_rating",
+                         "author_rating_count",
+                         "author_review_count",
+                         "book_average_rating",
+                         "num_ratings",
+                         "num_reviews",
+                         "pages",
+                         "publish_year")
+```
+
+Pasamos a estudiar las variables numéricas. Obtengamos para cada una de ellas los tres estadísticos básicos: media, desviación típica según la definición de R y coeficiente de asimetría.
+
+```{r}
+colMeans(good_reads[variables_numericas], na.rm=TRUE)
+```
+
+```{r}
+apply(good_reads[variables_numericas], 2, sd, na.rm=TRUE)
+```
+
+```{r}
+apply(good_reads[variables_numericas], 2, asim)
+```
+
+Como resultados interesantes podemos ver, por ejemplo, que las valoraciones de libros (y por tanto de autores) tienen una media de un 3.95, con una desviación típica de 0.29.
+
+También podemos ver que las variables como `author_rating_count`, `author_review_count`, `num_ratings` y `num_reviews` tienen una desviación típica muy alta, acompañadas de un elevado coeficiente de asimetría positivo, lo que indica que, aunque la media de estos valores sea relativamente baja, existe una gran cola de la distribución hacia la derecha.
+
+Además, podemos ver que la mayoría de los valores se concentran respecto al origen y tienen un alto coeficiente de asimetría (concretamente todas aquellos cuyas variables sean distintas a las puntuaciones) hacia el lado en el que se alejan de él. Para la fecha de publicación, podemos considerar que el "origen" se encuentra en la actualidad, momento en el que más libros se publican y registran en la base de datos de Good Reads.
+
+Pasemos a mostrar el resumen detallado de todas las variables numéricas.
+
+```{r}
+describe(good_reads[variables_numericas])
+```
+
+Respecto a las variables categóricas, veamos los datos que toma el dataset.
+
+```{r}
+unique(good_reads$author_gender)
+```
+
+```{r}
+unique(good_reads$birthplace)
+```
+
+```{r}
+unique(good_reads$genre_1)
+```
+
+```{r}
+unique(good_reads$genre_2)
+```
+
+#### Subconjuntos
+
+Para poder extraer los resultados correspondientes a libros de autores masculinos o femeninos, creamos dos subconjuntos de los datos, uno para cada género.
+
+```{r}
+good_reads_female <- subset(good_reads,
+                      author_gender == 'female',
+                      -author_gender)
+head(good_reads_female)
+```
+
+```{r}
+good_reads_male <- subset(good_reads,
+                          author_gender == 'male',
+                          -author_gender)
+head(good_reads_male)
+```
+
+Comparemos los estadísticos básicos de ambos subconjuntos.
+
+```{r}
+colMeans(good_reads_female[variables_numericas], na.rm=TRUE)
+colMeans(good_reads_male[variables_numericas], na.rm=TRUE)
+```
+
+```{r}
+apply(good_reads_female[variables_numericas], 2, sd, na.rm=TRUE)
+apply(good_reads_male[variables_numericas], 2, sd, na.rm=TRUE)
+```
+
+```{r}
+apply(good_reads_female[variables_numericas], 2, asim)
+apply(good_reads_male[variables_numericas], 2, asim)
+```
+
+Podemos observar cómo, en general, independientemente de que haya registrados más libros de hombres que de mujeres, estos son más populares y mejor valorados cuando son escritos por autores del género masculino. Esto puede deberse a múltiples causas, como las barreras sexistas en el mundo del arte o el hecho de que hasta hace poco el número de escritoras era muy reducido (tiene sentido que los libros registrados en Good Reads más antiguos sean precisamente obras clásicas populares). Esto último puede ser analizado al estudiar la correlación entre variables, como veremos más adelante.
+
+En vez de extraer directamente los valores de estadísticos de ambos subconjuntos, podemos utilizar directamente la función `aggregate`, que nos permite dividir el total de los registros en base a variables o conjuntos de ellas.
+
+Obtengamos la media de las valoraciones de los libros escritos por hombres y mujeres (obtendremos el mismo estadístico que antes) y la media de las valoraciones de los libros escritos por hombres y mujeres por cada género.
+
+```{r}
+aggregate(formula = book_average_rating ~ author_gender,
+          data = good_reads,
+          FUN = mean, na.rm=TRUE)
+```
+
+```{r}
+aggregate(formula = book_average_rating ~ author_gender + genre_1,
+          data = good_reads,
+          FUN = mean, na.rm=TRUE)
+```
+
+Podemos ver, por ejemplo, que la evaluación media de los libros cuyo género es "Feminism" escritos por mujeres es mayor que la de libros escritos por hombres. Debemos tener en cuenta que con esto no estamos indicando cuántos libros corresponden a cada agrupación, por lo que es posible que los resultados para algunos géneros poco extendidos no sean representativos.
+
+Veamos el número de libros que hay en nuestra base de datos escritos por hombres y mujeres en cada país.
+
+```{r}
+aggregate(formula = book_average_rating ~ author_gender + birthplace,
+          data = good_reads,
+          FUN = length)
+```
+
+Podemos ver, como curiosidad, que los 40 libros escritos por autores españoles están escritos por hombres. Esto puede tener cierto sentido, ya que el momento de esplendor de la literatura española coincidió con una época en la que pocas mujeres eran autoras de libros de literatura. Si estudiamos los tres estadísticos básicos por lugar de nacimiento y nos fijamos en el de España vemos que la mayor parte de los libros que toma son de antes del 2000.
+
+```{r}
+aggregate(formula = publish_year ~ birthplace,
+          data = good_reads,
+          FUN = function(x) return(c(mean(x, na.rm=TRUE), 
+                                     sd(x, na.rm=TRUE), 
+                                     asim(x))))
+```
+
+Si no se muestra el resultado en R Markdown (en el script de R puede verse el valor de la función `aggregate`), es posible ver el valor de España en el siguiente código:
+
+```{r}
+aggregate(formula = publish_year ~ birthplace,
+          data = good_reads,
+          FUN = function(x) return(as.list(c(mean(x, na.rm=TRUE), 
+                                     sd(x, na.rm=TRUE), 
+                                     asim(x)))))[106,2]
+```
+
+#### Matriz de varianzas-covarianzas
+
+Para poder obtener los resultados, hemos de eliminar los registros con valores nulos (aquellos que introdujimos en la sección de preprocesamiento) o imputarlos con algún estadístico. Para evitar perder información que podría sernos de utilidad, elegimos identificarlos e imputarlos.
+
+```{r}
+apply(good_reads, 2, function(x) return(sum(is.na(x))))
+```
+
+Vemos que solo se encuentran en las variables `birthplace`, `pages` y `publish_year`. Imputamos respectivamente los valores con la moda, la media y la mediana de dichas variables. Para `publish_year` escogemos imputar mediante la mediana en lugar de con la media (que es lo habitual) debido a la alta asimetría que hay en dichos datos.
+
+```{r}
+good_reads$birthplace[is.na(good_reads$birthplace)] <- mode(good_reads$birthplace)
+good_reads$pages[is.na(good_reads$pages)] <- mean(good_reads$pages, na.rm=TRUE)
+good_reads$publish_year[is.na(good_reads$publish_year)] <- median(good_reads$publish_year, na.rm=TRUE)
+```
+
+Ahora, calculamos sin problema la matriz de varianzas-covarianzas bajo las definiciones de R (cuasi-) y la estudiada en clase.
+
+```{r}
+cov(good_reads[variables_numericas])
+```
+
+```{r}
+mcov(good_reads[variables_numericas])
+```
+
+Calculamos la matriz de correlaciones.
+
+```{r}
+cor(good_reads[variables_numericas])
+```
+
+#### Visualización de los datos
+
+Para poder representar volúmenes de datos tan grandes (más de 20.000 registros), vamos a reducir el tamaño del dataset utilizando la función `sample` (más concretamente la función `sample_frac`) para un 1% de los datos originales. Para poder trabajar con las columnas numéricas, vamos a guardar dos samples: `sample_good_reads_catGender`, que contendrá la información numérica sobre la submuestra más la variable categórica `author_gender`, y `sample_good_reads`, que almacenará la misma información con la salvedad de que `author_gender` registrará un 0 para las mujeres y un 1 para los hombres.
+
+```{r}
+sample_good_reads <- sample_frac(good_reads, size = .01, replace = F)
+sample_good_reads <- sample_good_reads[c("author_gender", variables_numericas)]
+sample_good_reads_catGender <- sample_good_reads
+
+sample_good_reads$author_gender <- ifelse(sample_good_reads$author_gender == "female", 0, 1)
+```
+
+##### Visualización general
+
+Vamos a obtener la representación general de nuestros datos.
+
+```{r, echo=FALSE}
+scatterplotMatrix(sample_good_reads, pch = 19, smooth = FALSE, regLine = FALSE)
+```
+
+Aunque podemos entrever algunas relaciones básicas (como la alta correlación que existe entre las variables de puntuación del autor y sus obras o entre las variables de los números de reseñas y los números de valoraciones), es difícil extraer resultados con claridad. En la $Figura1$ se encuentra la imagen con mayor detalle.
+
+Veamos la información por separado de las variables relativas al autor y de las variables relativas al libro. Aunque para hacer un estudio más realista sobre los autores deberíamos agrupar los registros por identificador de autor (variable que eliminamos en el preprocesamiento), dejaremos las filas tal y como están, otorgando por tanto un mayor peso lineal a los autores que más obras tengan registradas en la página.
+
+```{r, echo=FALSE}
+ggpairs(sample_good_reads_catGender, 
+        columns=c("author_average_rating",
+                  "author_rating_count",
+                  "author_review_count"),
+        mapping=aes(color=author_gender))
+```
+
+```{r, echo=FALSE}
+ggpairs(sample_good_reads_catGender, 
+        columns=c("book_average_rating",
+                   "num_ratings",
+                   "num_reviews",
+                   "pages",
+                   "publish_year"),
+        mapping=aes(color=author_gender))
+```
+
+Es posible visualizar estas figuras con más detalle en la $Figura2.1$ y la $Figura2.2$.
+
+##### Histogramas
+
+Pasemos a representar un par de histogramas interesantes. Primero, veamos la distribución del número de páginas.
+
+```{r, echo=FALSE}
+ggplot(sample_good_reads_catGender, 
+       aes(x = pages)) + 
+  geom_histogram()
+```
+
+Vemos que la distribución que se sigue es relativamente normal, con la salvedad de la cola que se extiende hacia la derecha.
+
+Veamos ahora los histogramas de evaluaciones (resultados y número) por géneros.
+
+```{r, echo=FALSE}
+ggplot(sample_good_reads_catGender, 
+       aes(x = author_average_rating, 
+           fill = author_gender)) + 
+  geom_histogram()
+```
+
+```{r, echo=FALSE}
+ggplot(sample_good_reads_catGender, 
+       aes(x = author_rating_count, 
+           fill = author_gender)) + 
+  geom_histogram()
+```
+
+Realmente, es complicado extraer conclusiones directamente de estas gráficas, pero sí podemos ver, por ejemplo, cómo los libros de mayor popularidad y mejor valorados son mayoritariamente escritos por hombres. Es posible ver con mayor detalle estas gráficas en la $Figura3.1$, $Figura3.2$ y $Figura3.3$
+
+##### Diagramas de cajas
+
+Para poder visualizar cómodamente los datos asociados a los distintos géneros, filtramos primero aquellos géneros (o combinaciones de ellos) más comunes.
+
+```{r}
+good_reads_genres <- good_reads %>% group_by(genre_1,genre_2)
+good_reads_genres_count <- good_reads_genres %>% summarise(copies = n())
+
+mostCommonGenres <- head(good_reads_genres_count[order(good_reads_genres_count$copies, decreasing=TRUE),1:2],20)
+```
+
+Visualicemos las combinaciones de géneros con más registros en nuestro dataset.
+
+```{r}
+mostCommonGenres
+```
+
+Nos quedamos solo con los registros que tengan estas combinaciones.
+
+```{r, include=FALSE}
+good_reads_mostCommonGenres <- filter(good_reads_genres, 
+                                      any(mostCommonGenres$genre_1 == genre_1 & 
+                                            mostCommonGenres$genre_2 == genre_2))
+
+good_reads_mostCommonGenres$genres <- paste(good_reads_mostCommonGenres$genre_1, 
+                                            '-', 
+                                            good_reads_mostCommonGenres$genre_2)
+```
+
+Realizamos el mismo proceso para los 5 lugares de nacimiento más comunes con otra copia del DataFrame distinta.
+
+```{r}
+good_reads_birthplace <- good_reads %>% group_by(birthplace)
+good_reads_birthplace_count <- good_reads_birthplace %>% summarise(copies = n())
+
+mostCommonBirthplaces <- head(good_reads_birthplace_count[order(good_reads_birthplace_count$copies, decreasing=TRUE),1],5)
+```
+
+```{r}
+mostCommonBirthplaces
+```
+
+```{r, include=FALSE}
+good_reads_mostCommonBirthplaces <- filter(good_reads_birthplace, 
+                                      any(mostCommonBirthplaces$birthplace == birthplace))
+```
+
+Representamos los diagramas de cajas correspondientes a las siguientes relaciones:
+
+-   Número de páginas por géneros.
+
+```{r, echo=FALSE}
+p0 <- ggplot(good_reads_mostCommonGenres, aes(genres, pages)) + 
+  labs(x = 'Género', y = 'Páginas')
+p0 + coord_flip() + geom_boxplot()
+p0 + coord_flip() + geom_point()
+```
+
+-   Como apenas es posible ver nada debido a los outliers, filtramos los datos poniendo un número máximo de páginas para los registros.
+
+```{r, echo=FALSE}
+p1 <- ggplot(good_reads_mostCommonGenres[good_reads_mostCommonGenres$pages < 1500,], aes(genres, pages)) + 
+  labs(x = 'Género', y = 'Páginas')
+p1 + coord_flip() + geom_boxplot()
+```
+
+-   Número de valoraciones por géneros.
+
+```{r, echo=FALSE}
+p2 <- ggplot(good_reads_mostCommonGenres[good_reads_mostCommonGenres$num_ratings < 5e+5,], aes(genres, num_ratings)) + 
+  labs(x = 'Género', y = 'Valoraciones')
+p2 + coord_flip() + geom_boxplot()
+```
+
+-   Puntuaciones medias por géneros.
+
+```{r, echo=FALSE}
+p31 <- ggplot(good_reads_mostCommonGenres, aes(genres, book_average_rating)) + 
+  labs(x = 'Género', y = 'Puntuación media')
+p31 + coord_flip() + geom_boxplot()
+```
+
+-   Puntuaciones medias por lugar de nacimiento.
+
+```{r, echo=FALSE}
+p32 <- ggplot(good_reads_mostCommonBirthplaces, aes(birthplace, book_average_rating)) + 
+  labs(x = 'Lugar de nacimiento', y = 'Puntuación media')
+p32 + coord_flip() + geom_boxplot()
+```
+
+-   Fechas de publicación por géneros.
+
+```{r, echo=FALSE}
+p41 <- ggplot(good_reads_mostCommonGenres[good_reads_mostCommonGenres$publish_year > 1850,], aes(genres, publish_year)) + 
+  labs(x = 'Género', y = 'Fecha de publicación')
+p41 + coord_flip() + geom_boxplot()
+```
+
+-   Fechas de publicación por lugares de nacimiento.
+
+```{r, echo=FALSE}
+p42 <- ggplot(good_reads_mostCommonBirthplaces[good_reads_mostCommonBirthplaces$publish_year > 1850,], aes(birthplace, publish_year)) + 
+  labs(x = 'Lugar de nacimiento', y = 'Fecha de publicación')
+p42 + coord_flip() + geom_boxplot()
+```
+
+De estas gráficas (que se pueden encontrar con mayor detalle en la \$Figura4.1\$, \$Figura4.2\$, \$Figura5\$, \$Figura6\$, \$Figura7.1\$, \$Figura8.1\$ y \$Figura8.2\$) se puede extraer información interesante. Por ejemplo:
+
+-   Los libros de Fantasía-Ficción parecen ser los más largos, mientras que los libros de Artes son los más cortos. Esto tiene sentido, ya que normalmente los libros de arte suelen tener forma de ensayos cortos mientras que los libros de fantasía suelen desarrollar grandes universos con largas descripciones.
+
+-   Los libros Clásicos de Ficción suelen ser los que más valoraciones tienen, mientras que los de Romance los que menos. Esto también es normal. Los libros más antiguos tenderán a ser los más populares, mientras que los relatos románticos suelen tener un público objetivo más reducido.
+
+-   Por algún motivo, los libros de género Juvenil suelen ser los peores valorados. Por otro lado, aquellos con contenido más "objetivo" (como los de Srte o los Históricos) suelen tener valoraciones más altas.
+
+-   Los libros de autores japoneses tienen las valoraciones medias más altas, además de tener la menor desviación típica. Quizá las valoraciones de lectores japoneses sean menos variables, o tal vez se dediquen a géneros específicos cuyas puntuaciones medias sean más altas (como veíamos en el anterior punto).
+
+-   Los géneros Clásicos de ficción son los que más libros tienen publicados en fechas más antiguas, mientras que otros más nuevos como New Adult, comienzan con sus primeros títulos ya en el último milenio.
+
+-   La mayor parte de libros publicados en épocas más antiguas son Europeos, mientras que en la actualidad han sido superados por las nuevas potencias (especialmente angloparlantes), como EEUU, Japón, Canadá o Australia.
+
+##### Gráficos de barras
+
+Para poder representar en gráficos de barras la información relativa a las punutaciones de los distintos libros, vamos a dividirla en los tres terciles.
+
+```{r}
+good_reads$rating_range <- ifelse(good_reads$author_average_rating < as.numeric(quantile(good_reads$author_average_rating,0.333)), 
+                                  'Bajo',
+                                  ifelse(good_reads$author_average_rating < as.numeric(quantile(good_reads$author_average_rating,0.666)), 
+                                         'Medio',
+                                         'Alto'))
+
+good_reads$rating_range <- factor(good_reads$rating_range, levels=c('Bajo','Medio','Alto'))
+```
+
+Representemos ahora la cantidad de obras publicadas por hombres y mujeres para cada tercil.
+
+```{r, echo=FALSE}
+ggplot(good_reads, aes(x = author_gender, fill = author_gender)) +
+  geom_bar() +
+  scale_fill_manual(values = c("pink1","steelblue1")) +
+  facet_wrap(~rating_range) +
+  labs(title = 'Distribuciones de valoración (0-5) de autores 
+agrupadas por "hombre" y "mujer" en tres intervalos')
+```
+
+Podemos observar cómo las obras con puntuaciones más extremas suelen ser publicadas por hombres. Particularmente, hay una diferencia bastante grande en las obras del tercer tercil.
+
+Pasemos a estudiar concretamente las obras más extremas; aquellas que se sitúen en el primer y en el último percentil.
+
+```{r}
+good_reads$rating_extreme_range <- ifelse(good_reads$author_average_rating < as.numeric(quantile(good_reads$author_average_rating,0.01)), 
+                                  'Muy bajo',
+                                  ifelse(good_reads$author_average_rating < as.numeric(quantile(good_reads$author_average_rating,0.99)), 
+                                         'Medio',
+                                         'Muy alto'))
+
+good_reads$rating_extreme_range <- factor(good_reads$rating_extreme_range, levels=c('Muy bajo','Medio','Muy alto'))
+```
+
+```{r, echo=FALSE}
+ggplot(good_reads[good_reads$rating_extreme_range != 'Medio',], aes(x = author_gender, fill = author_gender)) +
+  geom_bar() +
+  scale_fill_manual(values = c("pink1","steelblue1")) +
+  facet_wrap(~rating_extreme_range) +
+  labs(title = 'Distribuciones de valoración (0-5) de autores 
+agrupadas por "hombre" y "mujer" en intervalos extremos')
+```
+
+Observamos cómo se cumple lo que comentábamos anteriormente. Los dos últimos gráficos pueden verse con más detalle en la $Figura9.1$ y en la $Figura9.2$.
+
+## 2. Análisis de Componentes Principales (ACP)
+
 ```{r}
 
 ```
 
-```{r}
-
-```
+## 3. Análisis Factorial (AF)
 
 ```{r}
 
 ```
 
+## 4. Análisis de Conglomerados (AC)
+
 ```{r}
-summary(cars)
+
 ```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -28,10 +28,6 @@ if(!require(GGally)){
   install.packages("GGally")
   require(GGally)
 }
-# if(!require(patchwork)){
-#   install.packages("patchwork")
-#   require(patchwork)
-# }
 
 # Importación
 ruta_read_rda <- "Datos/Procesados/good_reads_final_preprocesado.rda"
@@ -196,7 +192,7 @@ good_reads_mostCommonGenres$genres <- paste(good_reads_mostCommonGenres$genre_1,
 good_reads_birthplace <- good_reads %>% group_by(birthplace)
 good_reads_birthplace_count <- good_reads_birthplace %>% summarise(copies = n())
 
-mostCommonBirthplaces <- head(good_reads_birthplace_count[order(good_reads_birthplace_count$copies, decreasing=TRUE),1:2],5)
+mostCommonBirthplaces <- head(good_reads_birthplace_count[order(good_reads_birthplace_count$copies, decreasing=TRUE),1],5)
 
 good_reads_mostCommonBirthplaces <- filter(good_reads_birthplace, 
                                       any(mostCommonBirthplaces$birthplace == birthplace))
