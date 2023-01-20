@@ -18,6 +18,7 @@
   * "book_fullurl"
   * "book_id"
   * "book_title"
+  * "score"
   
 * Son variables categóricas:
   * "author_gender"
@@ -35,7 +36,6 @@
   * "num_reviews"
   * "pages"
   * "publish_date"
-  * "score"
   
 * Resultados que podemos lograr:
   * Estudio sobre géneros por países y géneros.

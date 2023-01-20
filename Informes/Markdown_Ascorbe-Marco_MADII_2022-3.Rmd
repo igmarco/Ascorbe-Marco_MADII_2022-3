@@ -1,4 +1,122 @@
-# Paquetes
+---
+title: "1. Análisis previo"
+author: "Pablo Ascorbe Fernández e Ignacio Marco Pérez"
+date: "2023-01-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Trabajo MADII - Análisis multivariante de un conjunto de datos
+
+El objetivo de este documento es explicar paso por paso el código introducido en los scripts (homónimos al nombre que daremos a cada sección) que se encuentran en la carpeta `/Scripts` del proyecto, correspondientes a la cada una de las fases de estudio del dataset "good_reads_final", disponible en el sitio web de [Kaggle](https://www.kaggle.com/code/jotamaggi/good-reads-author-gender-analysis).
+
+El dataset en cuestión contiene información sobre casi 10.000 libros de literatura extraídos de la página web [GoodReads](https://www.goodreads.com/), donde podemos encontrar los datos relativos a la identificación y detalles del autor y del libro, así como a las valoraciones de ambos. Este dataset nos ha resultado especialmente interesante, ya que, además de esta información, cada registro almacena el lugar de nacimiento y el género del autor, así como la fecha de publicación y los géneros principales del libro.
+
+Una descripción detallada de cada variable podría ser la siguiente:
+
+-   `author_average_rating`: Valoración media (0-5) en las obras publicadas del autor en la página.
+-   `author_gender`: Género (`male` o `female`) del autor.
+-   `author_genres`: Géneros principales de las obras publicadas del autor en la página.
+-   `author_id`: Código identificador del autor en la página.
+-   `author_name`: Nombre completo del autor.
+-   `author_page_url`: Código URL de la página principal del autor.
+-   `author_rating_count`: Número total de valoraciones de las obras publicadas del autor en la página.
+-   `author_review_count`: Número de reseñas de las obras publicadas del autor en la página.
+-   `birthplace`: Lugar de nacimiento (ciudad, estado o país) del autor.
+-   `book_average_rating`: Valoración media (0-5) del libro en la página.
+-   `book_fullurl`: Código URL de la página del libro.
+-   `book_id`: Código identificador del libro en la página.
+-   `book_title`: Título del libro.
+-   `genre_1`: Género principal.
+-   `genre_2`: Género secundario más relevante.
+-   `num_ratings`: Número de valoraciones en la página.
+-   `num_reviews`: Número de reseñas en la página.
+-   `pages`: Número de páginas.
+-   `publish_date`: Fecha de publicación
+-   `score`: Información desconocida. Para el estudio, prescindiremos de esta variable.
+
+De estas variables que hemos definido, realmente solo nos interesa trabajar con un subconjunto de ellas. Además, no todas están realmente estandarizadas (por ejemplo, las fechas de publicación no siguen un formato unificado). Por ello, uno de los primeros esfuerzos necesarios para llevar a cabo el estudio es el de preprocesar el dataset.
+
+## 0. Preparación del proyecto
+
+### 0.1. Creación de la estructura del proyecto
+
+El primer paso para construir el proyecto es crear la estructura de este. Podemos utilizar el siguiente código (aunque la estructura ya está definida).
+
+```{r}
+if(!dir.exists("Datos")){
+  dir.create("Datos")
+}
+if(!dir.exists("Datos/Brutos")){
+  dir.create("Datos/Brutos")
+}
+if(!dir.exists("Datos/Procesados")){
+  dir.create("Datos/Procesados")
+}
+
+if(!dir.exists("Scripts")){
+  dir.create("Scripts")
+}
+
+if(!dir.exists("Figuras")){
+  dir.create("Figuras")
+}
+
+if(!dir.exists("Informes")){
+  dir.create("Informes")
+}
+```
+
+### 0.2. Funciones auxiliares
+
+Definamos las funciones auxiliares que emplearemos en fases posteriores del proyecto.
+
+La función `asim` calcula el coeficiente de asimetría de un vector de valores (no nulos o nulos).
+
+```{r}
+asim <- function(x){
+  x <- x[!is.na(x)]
+  n <- length(x)
+  return(mean((x - mean(x))^3)/(sd(x)^3))
+}
+```
+
+La función `getYear` me permite obtener el año de un string que contenga el año como última subcadena tras un caracter `' '`.
+
+```{r}
+getYear <- function(dateString){
+  return(unlist(strsplit(dateString, " "))[length(unlist(strsplit(dateString, " ")))] )
+}
+```
+
+La función `mode` calcula la moda de un vector de valores (no nulos o nulos).
+
+```{r}
+mode <- function(x) {
+  x <- x[!is.na(x)]
+  return(names(which.max(table(x))))
+}
+```
+
+La función `mcov` calcula la matriz de covarianzas de un dataframe `X` bajo la definición de covarianza estudiada en clase.
+
+```{r}
+mcov <- function(X){
+  n <- dim(X)[1]
+  return(cov(X)*(n - 1)/n)
+}
+```
+
+### 0.3. Preprocesado de datos
+
+Para llevar a cabo el preprocesado de los datos, extraeremos el DataFrame del archivo `good_reads_final.csv` que se encuentra en la carpeta `\Datos\Brutos`.
+
+Lo primero que hacemos es instalar e importar los paquetes que utilizaremos en esta sección.
+
+```{r, echo=FALSE}
 if(!require(readr)){
   install.packages("readr", dependencies = TRUE, repos='http://cran.rstudio.com/')
   require(readr)
@@ -11,25 +129,69 @@ if(!require(dplyr)){
   install.packages("dplyr")
   require(dplyr)
 }
+```
 
-# Importación
-ruta_csv <- "Datos/Brutos/good_reads_final.csv"
+#### Importación y estudio inicial del DataFrame
+
+Importamos el DataFrame.
+
+```{r}
+ruta_csv <- "../Datos/Brutos/good_reads_final.csv"
 good_reads <- as.data.frame(read_csv(ruta_csv, col_names = TRUE))
+```
 
-# Resúmenes
+Mostramos las columnas del DataFrame y vemos que coinciden con las definidas anteriormente.
+
+```{r}
 colnames(good_reads)
+```
+
+Para poder hacernos una idea inicial de cómo son los datos, mostramos los primeros 5 registros
+
+```{r}
 head(good_reads, 5)
+```
 
+Ahora que hemos visto más o menos la forma de los datos, hagamos un pequeño resumen de las variables.
+
+```{r}
 summary(good_reads)
-describe(good_reads)
+```
 
-# Filtrado de las columnas relevantes
+Para ver un resumen más detallado utilizamos la función `describe`.
+
+```{r}
+describe(good_reads)
+```
+
+Las columnas que realmente nos interesan para el estudio son las siguientes:
+
+-   `author_average_rating`
+-   `author_gender`
+-   `author_genres`
+-   `author_rating_count`
+-   `author_review_count`
+-   `birthplace`
+-   `book_average_rating`
+-   `genre_1`
+-   `genre_2`
+-   `num_ratings`
+-   `num_reviews`
+-   `pages`
+-   `publish_date`
+
+De modo que eliminamos las variables irrelevantes.
+
+```{r}
 good_reads <- select(good_reads,-'author_id',-'author_name',-'author_page_url',
                      -'book_fullurl',-'book_id',-'book_title')
 
 colnames(good_reads)
+```
 
-# División de las columnas
+Para poder trabajar cómodamente con las columnas numéricas y categóricas, anotamos en dos vectores aquellas que corresponde con una categoría u otra.
+
+```{r}
 variables_categoricas <- c("author_gender",
                            "author_genres",
                            "birthplace",
@@ -43,33 +205,64 @@ variables_numericas <- c("author_average_rating",
                          "num_reviews",
                          "pages",
                          "publish_date")
+```
 
-# Estudio de las variables categóricas
+#### Estudio de las variables categóricas del DataFrame
+
+Para poder visualizar mejor los datos, mostramos los posibles valores que toma cada variable en el dataset.
+
+```{r}
 unique(good_reads$author_gender)
-unique(good_reads$author_genres)
-unique(good_reads$birthplace)
-unique(good_reads$genre_1)
-unique(good_reads$genre_2)
+```
 
-# Preprocesado de la variable "author_genres"
+```{r}
+unique(good_reads$author_genres)[0:10]
+```
+
+```{r}
+unique(good_reads$birthplace)[0:10]
+```
+
+```{r}
+unique(good_reads$genre_1)[0:10]
+```
+
+```{r}
+unique(good_reads$genre_2)[0:10]
+```
+
+Vemos que las dos variables que necesitan preprocesado son `author_genres` y `birthplace`.
+
+Para tratar `author_genres`, convertimos el string segmentado por el caracter ',' en un vector de componentes (géneros del autor).
+
+```{r}
 good_reads$author_genres <- strsplit(as.character(good_reads$author_genres), ",")
-unique(good_reads$author_genres)
+unique(good_reads$author_genres)[1:10]
 good_reads[970,"author_genres"]
+```
 
-# Preprocesado de la variable "birthplace"
+Ahora, para tratar `birthplace`, debemos eliminar los caracteres indeseables de los datos.
+
+```{r}
 good_reads$birthplace <- gsub("\n   ", "", good_reads$birthplace)
 good_reads$birthplace <- gsub("\n  ", "", good_reads$birthplace)
 good_reads$birthplace <- gsub("[\n\r]", "", good_reads$birthplace)
-unique(good_reads$birthplace)
+unique(good_reads$birthplace)[1:10]
+```
 
-# Sustituimos "" y valores anómalos por nulos.
+Todavía vemos valores anómalos, así que los sustituimos por valores nulos.
+
+```{r}
 good_reads$birthplace[good_reads$birthplace == ""] <- NA
 good_reads$birthplace[good_reads$birthplace == "Occupied"] <- NA
 good_reads$birthplace[good_reads$birthplace == "Republic of"] <- NA
 good_reads$birthplace[good_reads$birthplace == "Identity of author to remamystery for now"] <- NA
 good_reads$birthplace[good_reads$birthplace == "I've continued \"worlding\" to many countries."] <- NA
+```
 
-# Últimas correcciones
+Ahora, homogeneizamos el dataset quedándonos únicamente con el país (convirtiendo aquellos datos que contengan información sobre ciudades, regiones, estados, etc.).
+
+```{r}
 good_reads$birthplace[good_reads$birthplace == "Seoul"] <- "South Korea"
 
 good_reads$birthplace[good_reads$birthplace == "British India" |
@@ -88,7 +281,7 @@ good_reads$birthplace[good_reads$birthplace == "the Former Yugoslav Republic of"
 good_reads$birthplace[good_reads$birthplace == "Holy See (vatican City State)"] <- "Vatican City State"
 
 good_reads$birthplace[good_reads$birthplace == "Winnipeg" | 
-                        good_reads$birthplace == "currently living Canada" | 
+                      good_reads$birthplace == "currently living Canada" | 
                         good_reads$birthplace == "MB  Canada" | 
                         good_reads$birthplace == "Vancouver" | 
                         good_reads$birthplace == "Canada "] <- "Canada"
@@ -188,27 +381,31 @@ good_reads$birthplace[grep("Russia", good_reads$birthplace)] <- "Russia"
 good_reads$birthplace[grep("Pakistan", good_reads$birthplace)] <- "Pakistan"
 
 unique(good_reads$birthplace)
+```
 
-# Estudio de las variables numéricas
+#### Estudio de las variables numéricas del DataFrame
+
+```{r}
 describe(good_reads[variables_numericas])
+```
 
-unique(good_reads$author_average_rating)
-unique(good_reads$author_rating_count)
-unique(good_reads$author_review_count)
-unique(good_reads$book_average_rating)
-unique(good_reads$num_ratings)
-unique(good_reads$num_reviews)
-unique(good_reads$pages)
-unique(good_reads$publish_date)
+La única variable cuya información no parece estar bien procesada es `publish_date`.
 
-# Preprocesado de la variable "publish_date"
+```{r}
+unique(good_reads$publish_date)[1:10]
+```
+
+Vemos que los datos no siguen una norma. Para ello, nos quedamos únicamente con los años en una variable `publish_year`, utilizando la función definida anteriormente.
+
+```{r}
 good_reads$publish_year <- sapply(good_reads$publish_date, getYear)
 
 unique(good_reads$publish_year)
+```
 
-# Eliminamos los valores atípicos.
-substr(good_reads$publish_year,nchar(good_reads$publish_year)-1,nchar(good_reads$publish_year)+1)
+Sigue habiendo valores atípicos, así que los eliminamos.
 
+```{r}
 good_reads$publish_year[good_reads$publish_year == "by" |
                           good_reads$publish_year == "1" |
                           good_reads$publish_year == "0" |
@@ -218,20 +415,62 @@ good_reads$publish_year[good_reads$publish_year == "by" |
                           substr(good_reads$publish_year,nchar(good_reads$publish_year)-1,nchar(good_reads$publish_year)+1) == "th"] <- NA
 
 unique(good_reads$publish_year)
+```
 
+Guardemos la información como enteros.
+
+```{r}
 good_reads$publish_year <- strtoi(good_reads$publish_year)
+```
 
+Por último, eliminemos la variable `publish_date`, ya que ya no la necesitaremos.
+
+```{r}
 good_reads <- select(good_reads,-'publish_date')
+```
 
-# Guardamos los datos preprocesados.
-# ruta_proc_csv <- "Datos/Procesados/good_reads_final_preprocesado.csv"
-# write_csv(good_reads, ruta_proc_csv, col_names = TRUE) # Guardándolo como CSV convierte en NA la variable "author_genres"
+#### Exportación de los datos procesados
+
+Como tenemos una variable que utiliza como datos vectores (`author_genres`), no podemos exportar los datos a un fichero CSV sin realizar alguna operación antes. Pero, como nuestro objetivo es guardar el DataFrame con los datos procesados, realizamos la copia en un fichero binario RDA que contenga directamente el objeto DataFrame.
+
+```{r}
 ruta_proc_rda <- "Datos/Procesados/good_reads_final_preprocesado.rda"
 save(good_reads, file = ruta_proc_rda)
+```
 
+Podemos comprobar que se ha guardado correctamente volviéndolo a cargar.
 
-# Importación
+```{r}
 ruta_read_rda <- "Datos/Procesados/good_reads_final_preprocesado.rda"
 load(file = ruta_read_rda)
 
 head(good_reads)
+```
+
+## 1. Análisis previo
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -50,8 +50,7 @@ variables_numericas <- c("author_average_rating",
                          "num_ratings",
                          "num_reviews",
                          "pages",
-                         "publish_year",
-                         "score")
+                         "publish_year")
 
 colnames(good_reads)
 head(good_reads, 5)
@@ -99,15 +98,15 @@ apply(good_reads_male[variables_numericas], 2, asim)
 
 
 # Con aggregate
-aggregate(x = score ~ author_gender,
+aggregate(x = book_average_rating ~ author_gender,
           data = good_reads,
           FUN = mean, na.rm=TRUE)
 
-aggregate(x = score ~ author_gender + genre_1,
+aggregate(x = book_average_rating ~ author_gender + genre_1,
           data = good_reads,
           FUN = mean, na.rm=TRUE)
 
-aggregate(x = score ~ author_gender + birthplace,
+aggregate(x = book_average_rating ~ author_gender + birthplace,
           data = good_reads,
           FUN = length)
 
@@ -160,10 +159,107 @@ ggpairs(sample_good_reads_catGender,
                    "num_ratings",
                    "num_reviews",
                    "pages",
-                   "publish_year",
-                   "score"),
+                   "publish_year"),
         mapping=aes(color=author_gender))
                   
+# Representación de histogramas
+ggplot(sample_good_reads_catGender, 
+       aes(x = pages)) + 
+  geom_histogram()
 
-# Vale, pues queda hacer gráficos más específicos y quizá extraer información
-# con el GGally para submuestras con los 3 países y los 5 géneros más populares.
+ggplot(sample_good_reads_catGender, 
+       aes(x = author_average_rating, 
+           fill = author_gender)) + 
+  geom_histogram()
+
+ggplot(sample_good_reads_catGender, 
+       aes(x = author_rating_count, 
+           fill = author_gender)) + 
+  geom_histogram()
+
+# Diagramas de cajas
+# Vamos a quedarnos con los géneros con más ejemplares.
+good_reads_genres <- good_reads %>% group_by(genre_1,genre_2)
+good_reads_genres_count <- good_reads_genres %>% summarise(copies = n())
+
+mostCommonGenres <- head(good_reads_genres_count[order(good_reads_genres_count$copies, decreasing=TRUE),1:2],20)
+
+good_reads_mostCommonGenres <- filter(good_reads_genres, 
+                                      any(mostCommonGenres$genre_1 == genre_1 & 
+                                            mostCommonGenres$genre_2 == genre_2))
+
+good_reads_mostCommonGenres$genres <- paste(good_reads_mostCommonGenres$genre_1, 
+                                            '-', 
+                                            good_reads_mostCommonGenres$genre_2)
+
+# Vamos a quedarnos con los lugares de nacimiento con más ejemplares.
+good_reads_birthplace <- good_reads %>% group_by(birthplace)
+good_reads_birthplace_count <- good_reads_birthplace %>% summarise(copies = n())
+
+mostCommonBirthplaces <- head(good_reads_birthplace_count[order(good_reads_birthplace_count$copies, decreasing=TRUE),1:2],5)
+
+good_reads_mostCommonBirthplaces <- filter(good_reads_birthplace, 
+                                      any(mostCommonBirthplaces$birthplace == birthplace))
+
+# Representamos las gráficas
+p0 <- ggplot(good_reads_mostCommonGenres, aes(genres, pages)) + 
+  labs(x = 'Género', y = 'Páginas')
+p0 + coord_flip() + geom_boxplot()
+p0 + coord_flip() + geom_point()
+
+# Filtremos aquellos con menos páginas para verlo con mayor claridad
+p1 <- ggplot(good_reads_mostCommonGenres[good_reads_mostCommonGenres$pages < 1500,], aes(genres, pages)) + 
+  labs(x = 'Género', y = 'Páginas')
+p1 + coord_flip() + geom_boxplot()
+
+# Otras representaciones
+p2 <- ggplot(good_reads_mostCommonGenres[good_reads_mostCommonGenres$num_ratings < 5e+5,], aes(genres, num_ratings)) + 
+  labs(x = 'Género', y = 'Valoraciones')
+p2 + coord_flip() + geom_boxplot()
+
+p31 <- ggplot(good_reads_mostCommonGenres, aes(genres, book_average_rating)) + 
+  labs(x = 'Género', y = 'Puntuación media')
+p31 + coord_flip() + geom_boxplot()
+
+p32 <- ggplot(good_reads_mostCommonBirthplaces, aes(birthplace, book_average_rating)) + 
+  labs(x = 'Lugar de nacimiento', y = 'Puntuación media')
+p32 + coord_flip() + geom_boxplot()
+
+p41 <- ggplot(good_reads_mostCommonGenres[good_reads_mostCommonGenres$publish_year > 1850,], aes(genres, publish_year)) + 
+  labs(x = 'Género', y = 'Fecha de publicación')
+p41 + coord_flip() + geom_boxplot()
+
+p42 <- ggplot(good_reads_mostCommonBirthplaces[good_reads_mostCommonBirthplaces$publish_year > 1850,], aes(birthplace, publish_year)) + 
+  labs(x = 'Lugar de nacimiento', y = 'Fecha de publicación')
+p42 + coord_flip() + geom_boxplot()
+
+# Gráficos de barras
+good_reads$rating_range <- ifelse(good_reads$author_average_rating < as.numeric(quantile(good_reads$author_average_rating,0.333)), 
+                                  'Bajo',
+                                  ifelse(good_reads$author_average_rating < as.numeric(quantile(good_reads$author_average_rating,0.666)), 
+                                         'Medio',
+                                         'Alto'))
+
+good_reads$rating_range <- factor(good_reads$rating_range, levels=c('Bajo','Medio','Alto'))
+
+ggplot(good_reads, aes(x = author_gender, fill = author_gender)) +
+  geom_bar() +
+  scale_fill_manual(values = c("pink1","steelblue1")) +
+  facet_wrap(~rating_range) +
+  labs(title = 'Distribuciones de valoración (0-5) de autores 
+agrupadas por "hombre" y "mujer" en tres intervalos')
+
+good_reads$rating_extreme_range <- ifelse(good_reads$author_average_rating < as.numeric(quantile(good_reads$author_average_rating,0.01)), 
+                                  'Muy bajo',
+                                  ifelse(good_reads$author_average_rating < as.numeric(quantile(good_reads$author_average_rating,0.99)), 
+                                         'Medio',
+                                         'Muy alto'))
+
+good_reads$rating_extreme_range <- factor(good_reads$rating_extreme_range, levels=c('Muy bajo','Medio','Muy alto'))
+
+ggplot(good_reads[good_reads$rating_extreme_range != 'Medio',], aes(x = author_gender, fill = author_gender)) +
+  geom_bar() +
+  scale_fill_manual(values = c("pink1","steelblue1")) +
+  facet_wrap(~rating_extreme_range) +
+  labs(title = 'Distribuciones de valoración (0-5) de autores 
+agrupadas por "hombre" y "mujer" en intervalos extremos')
