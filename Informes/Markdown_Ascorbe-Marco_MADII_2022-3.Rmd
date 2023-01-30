@@ -2011,6 +2011,6 @@ Primero, no solo hemos conseguido familiarizarnos mejor con el entorno de RStudi
 
 Segundo, hemos tratado unos datos con los que no habíamos trabajado previamente. Con ello, hemos aprendido a manejarnos con datos desconocidos y con un tema que nos parece interesante: el mundo de la literatura.
 
-Por último, hemos podido aplicar todos los conceptos vistos en la asignatura. Hemos repasado su contenido teórico y los hemos aplicado a nuestros datos, de manera que hemos logrado conclusiones interesantes.
+Por último, hemos podido aplicar todos los conceptos vistos en la asignatura. Haciendo un repaso por su contenido teórico y pudiendo aplicarlo a nuestros datos, logrando conclusiones interesantes.
 
 Gracias por la oportunidad realizando este trabajo, ha sido un placer.
