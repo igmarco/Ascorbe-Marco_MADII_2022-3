@@ -1,0 +1,45 @@
+¿Qué podemos estudiar del dataset? Esa es una muy buena pregunta, vamos a estudiarla con algo de profundidad:
+
+* El dataset proviene de Kaggle, concretamente de https://www.kaggle.com/code/jotamaggi/good-reads-author-gender-analysis.
+
+* Las columnas que contiene son las siguientes:
+    [1] "author_average_rating" "author_gender"         "author_genres"        
+    [4] "author_id"             "author_name"           "author_page_url"      
+    [7] "author_rating_count"   "author_review_count"   "birthplace"           
+    [10] "book_average_rating"   "book_fullurl"          "book_id"              
+    [13] "book_title"            "genre_1"               "genre_2"              
+    [16] "num_ratings"           "num_reviews"           "pages"                
+    [19] "publish_date"          "score"
+    
+* Son variables irrelevantes:
+  * "author_id"
+  * "author_name"
+  * "author_page_url"
+  * "book_fullurl"
+  * "book_id"
+  * "book_title"
+  * "score"
+  
+* Son variables categóricas:
+  * "author_gender"
+  * "author_genres"
+  * "birthplace"
+  * "genre_1"
+  * "genre_2"
+  
+* Son variables numéricas (o fechas):
+  * "author_average_rating"
+  * "author_rating_count"
+  * "author_review_count"
+  * "book_average_rating"
+  * "num_ratings"
+  * "num_reviews"
+  * "pages"
+  * "publish_date"
+  
+* Resultados que podemos lograr:
+  * Estudio sobre géneros por países y géneros.
+  * Predicciones sobre género del autor y géneros de los libros.
+  * Regresión sobre resultados ("score"s y "rating"s).
+
+  
