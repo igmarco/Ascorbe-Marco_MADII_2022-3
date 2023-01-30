@@ -1,17 +1,35 @@
 ---
-title: "1. Análisis previo"
+title: "Trabajo MADII - Análisis multivariante de un conjunto de datos"
 author: "Pablo Ascorbe Fernández e Ignacio Marco Pérez"
 date: "2023-01-30"
 output: html_document
 ---
 
+```{=html}
+<style type="text/css">
+
+h1.title {
+  font-size: 38px;
+  text-align: center;
+}
+h4.author { /* Header 4 - and the author and data headers use this too  */
+  font-size: 22px;
+  text-align: center;
+}
+h4.date { /* Header 4 - and the author and data headers use this too  */
+  font-size: 20px;
+  text-align: center;
+}
+</style>
+```
+
+------------------------------------------------------------------------
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Trabajo MADII - Análisis multivariante de un conjunto de datos
-
-El objetivo de este documento es explicar paso por paso el código introducido en los scripts (homónimos al nombre que daremos a cada sección) que se encuentran en la carpeta `/Scripts` del proyecto, correspondientes a la cada una de las fases de estudio del dataset "good_reads_final", disponible en el sitio web de [Kaggle](https://www.kaggle.com/code/jotamaggi/good-reads-author-gender-analysis).
+MADII - Análisis multivariante de un conjunto de datosEl objetivo de este documento es explicar paso por paso el código introducido en los scripts (homónimos al nombre que daremos a cada sección) que se encuentran en la carpeta `/Scripts` del proyecto, correspondientes a la cada una de las fases de estudio del dataset "good_reads_final", disponible en el sitio web de [Kaggle](https://www.kaggle.com/code/jotamaggi/good-reads-author-gender-analysis).
 
 El dataset en cuestión contiene información sobre un total de 22.891 libros de literatura extraídos de la página web [GoodReads](https://www.goodreads.com/), donde podemos encontrar los datos relativos a la identificación y detalles del autor y del libro, así como a las valoraciones de ambos. Este dataset nos ha resultado especialmente interesante, ya que, además de esta información, cada registro almacena el lugar de nacimiento y el género del autor, así como la fecha de publicación y los géneros principales del libro.
 
@@ -610,13 +628,13 @@ En vez de extraer directamente los valores de estadísticos de ambos subconjunto
 Obtengamos la media de las valoraciones de los libros escritos por hombres y mujeres (obtendremos el mismo estadístico que antes) y la media de las valoraciones de los libros escritos por hombres y mujeres por cada género.
 
 ```{r}
-aggregate(formula = book_average_rating ~ author_gender,
+aggregate(book_average_rating ~ author_gender,
           data = good_reads,
           FUN = mean, na.rm=TRUE)
 ```
 
 ```{r}
-aggregate(formula = book_average_rating ~ author_gender + genre_1,
+aggregate(book_average_rating ~ author_gender + genre_1,
           data = good_reads,
           FUN = mean, na.rm=TRUE)
 ```
@@ -626,7 +644,7 @@ Podemos ver, por ejemplo, que la evaluación media de los libros cuyo género es
 Veamos el número de libros que hay en nuestra base de datos escritos por hombres y mujeres en cada país.
 
 ```{r}
-aggregate(formula = book_average_rating ~ author_gender + birthplace,
+aggregate(book_average_rating ~ author_gender + birthplace,
           data = good_reads,
           FUN = length)
 ```
@@ -634,7 +652,7 @@ aggregate(formula = book_average_rating ~ author_gender + birthplace,
 Podemos ver, como curiosidad, que los 40 libros escritos por autores españoles están escritos por hombres. Esto puede tener cierto sentido, ya que el momento de esplendor de la literatura española coincidió con una época en la que pocas mujeres eran autoras de libros de literatura. Si estudiamos los tres estadísticos básicos por lugar de nacimiento y nos fijamos en el de España vemos que la mayor parte de los libros que toma son de antes del 2000.
 
 ```{r}
-aggregate(formula = publish_year ~ birthplace,
+aggregate(publish_year ~ birthplace,
           data = good_reads,
           FUN = function(x) return(c(mean(x, na.rm=TRUE), 
                                      sd(x, na.rm=TRUE), 
@@ -644,7 +662,7 @@ aggregate(formula = publish_year ~ birthplace,
 Si no se muestra el resultado en R Markdown (en el script de R puede verse el valor de la función `aggregate`), es posible ver el valor de España en el siguiente código:
 
 ```{r}
-aggregate(formula = publish_year ~ birthplace,
+aggregate(publish_year ~ birthplace,
           data = good_reads,
           FUN = function(x) return(as.list(c(mean(x, na.rm=TRUE), 
                                      sd(x, na.rm=TRUE), 
@@ -863,7 +881,7 @@ p42 <- ggplot(good_reads_mostCommonBirthplaces[good_reads_mostCommonBirthplaces$
 p42 + coord_flip() + geom_boxplot()
 ```
 
-De estas gráficas (que se pueden encontrar con mayor detalle en la \$Figura4.1\$, \$Figura4.2\$, \$Figura5\$, \$Figura6\$, \$Figura7.1\$, \$Figura8.1\$ y \$Figura8.2\$) se puede extraer información interesante. Por ejemplo:
+De estas gráficas (que se pueden encontrar con mayor detalle en la $Figura4.1$, $Figura4.2$, $Figura5$, $Figura6$, $Figura7.1$, $Figura8.1$ y $Figura8.2$) se puede extraer información interesante. Por ejemplo:
 
 -   Los libros de Fantasía-Ficción parecen ser los más largos, mientras que los libros de Artes son los más cortos. Esto tiene sentido, ya que normalmente los libros de arte suelen tener forma de ensayos cortos mientras que los libros de fantasía suelen desarrollar grandes universos con largas descripciones.
 
@@ -929,18 +947,1074 @@ Observamos cómo se cumple lo que comentábamos anteriormente. Los dos últimos 
 
 ## 2. Análisis de Componentes Principales (ACP)
 
-```{r}
+En este apartado realizaremos el análisis de componentes principales, gracias a esta técnica podremos reducir la dimensión de los datos para poder visualizarlos y manejarlos mejor.
 
+Primero, importaremos nuestros datos de nuevo, de modo que nos sirva este apartado de forma independiente al resto, como si partieramos de cero.
+
+```{r}
+if(!require(ggplot2)){
+  install.packages("ggplot2")
+  require(ggplot2)
+}
+if(!require(dplyr)){
+  install.packages("dplyr")
+  require(dplyr)
+}
 ```
+
+Importamos los datos.
+
+```{r}
+ruta_read_rda <- "../Datos/Procesados/good_reads_final_preprocesado.rda"
+load(file = ruta_read_rda)
+head(good_reads, 10)
+```
+
+Recordemos que teniamos valores nulos, visto en el apartado anterior así que en este caso los volvemos a imputar.
+
+```{r}
+good_reads$pages[is.na(good_reads$pages)] <- mean(good_reads$pages, na.rm=TRUE)
+good_reads$publish_year[is.na(good_reads$publish_year)] <- median(good_reads$publish_year, na.rm=TRUE)
+```
+
+Tenemos variables categóricas y numéricas, para hacer este análisis vamos a quedarnos con las numéricas y usar el género principal para visualizar mejor los resultados, de entre todos los géneros nos quedaremos con los cinco más populares.
+
+Nos quedamos con las variables deseadas y las guardamos en un dataframe.
+
+```{r, warning=FALSE}
+variables_numericas <- c("author_average_rating",
+                         "author_rating_count",
+                         "author_review_count",
+                         "book_average_rating",
+                         "num_ratings",
+                         "num_reviews",
+                         "pages",
+                         "publish_year")
+
+good_reads_genres <- good_reads %>% group_by(genre_1)
+good_reads_genres_count <- good_reads_genres %>% summarise(copies = n())
+mostCommonGenres <- head(good_reads_genres_count[order(good_reads_genres_count$copies, decreasing=TRUE),1:2],5)
+good_reads_mostCommonGenres <- filter(good_reads_genres, 
+                                      any(mostCommonGenres$genre_1 == genre_1))
+good_reads_mostCommonGenres$genres <- paste(good_reads_mostCommonGenres$genre_1)
+df_pca <- good_reads_mostCommonGenres[,c(variables_numericas, "genres")]
+```
+
+Separamos en X e y para el análisis.
+
+```{r}
+X <- as.matrix(df_pca[, -9])
+```
+
+Primero, vamos a hacer el análisis de componentes principales de manera "artesanal", así como vimos en la práctica de la asignatura por mayor completitud. Sabemos que no es necesario, pero sí interesante.
+
+```{r}
+p <- ncol(X)
+S <- cov(X)
+```
+
+Calculamos la varianza total.
+
+```{r}
+var_tot <- sum(diag(S))
+var_tot
+```
+
+Calculamos los valores y vectores propios.
+
+```{r}
+S_vvprop <- eigen(S)
+sum(S_vvprop$values)
+```
+
+Vemos que corresponde con la suma de las varianzas de nuestras variables.
+
+```{r}
+100*cumsum(S_vvprop$values)/var_tot
+```
+
+Con tan solo las dos primeras componentes llegamos al 99% de varianza acumulada, aún así vamos a aplicar el método del codo para comprobarlo.
+
+```{r, echo=FALSE}
+plot(1:p,
+     S_vvprop$values,
+     type = "b",
+     pch = 19,
+     xlab = "#CP",
+     ylab = "Varianza")
+```
+
+Es evidente que son dos componentes, con una serviría realmente, pero es preferible tener un par de componentes.
+
+```{r}
+k <- 2
+X_star <- scale(X, scale = FALSE)
+```
+
+Calculamos las dos componentes principales y las guardamos en la matriz Y.
+
+```{r}
+Y <- X_star %*% S_vvprop$vectors[, 1:k]
+summary(Y)
+head(Y)
+cov(Y)
+S_vvprop$vectors[, 1:k]
+```
+
+Vemos los pesos que tienen cada una de las variables en las 2 componentes, comprobamos que las que más influyen son el número de reseñas y valoraciones tanto para los libros y los autores.
+
+```{r}
+cor(X, Y)
+```
+
+Vamos a mostrar los resultados.
+
+```{r}
+df_pca <- cbind(df_pca, Y)
+colnames(df_pca)[10:11] <- paste("CP", 1:k, sep = "")
+head(df_pca)
+```
+
+Y vamos visualizando las distintas gráficas.
+
+```{r, echo=FALSE}
+ggplot(df_pca, aes(x = CP1, y = CP2, color = genres, fill = genres)) + geom_point()
+```
+
+En la primera figura no llegamos a ver nada realmente útil, pero sí que encontramos algunos géneros distanciados del resto. Serán obras muy populares, con muchas reseñas y valoraciones. El resto está aglomerado en un cono y es dificil ver nada. Esto, tanto para la primera componente, como para la segunda.
+
+```{r, echo=FALSE}
+ggplot(df_pca, aes(x = CP1, y = genres)) + geom_point()
+```
+
+```{r, echo=FALSE}
+ggplot(df_pca, aes(x = CP2, y = genres)) + geom_point()
+```
+
+En las otras dos figuras vemos como influyen las distintas componentes a los géneros. sí que se pueden llegar a apreciar qué géneros como fantasía, ficción y jóvenes adultos destacan por tener valores muy alejados del resto, es decir, muy populares. Otros géneros, según este dataset, no destacan tanto, como las novelas históricas o el romance contemporáneo.
+
+Las figuras con mejor calidad pueden ser encontradas en la carpeta "./Figuras", éstas son: $Figura10.1$, $Figura10.2$, $Figura10.3$.
+
+Pasamos a usar prcomp que es la librería pensada para hacer estos análisis.
+
+```{r}
+df_acp_cov <- prcomp(X)
+
+df_acp_cov
+```
+
+Podemos ver que el resultados obtenido anteriormente es ligeramente distinto a este.
+
+```{r, echo=FALSE}
+plot(df_acp_cov, type = "l", pch = 19)
+```
+
+De nuevo, parece casi obligatorio quedarse con k = 2.
+
+```{r}
+cov(df_acp_cov$x[, 1:2])
+df_acp_cov$rotation[, 1:2]
+```
+
+Vemos qué características ingluyen más en cada componente y que en general la hegemonía de las variables de valoraciones sobre las demás. Recuperamos el dataset original y le añadimos las dos componentes.
+
+```{r}
+df_pca <-
+df_pca <- cbind(df_pca, df_acp_cov$x[, 1:2])
+```
+
+Hecho esto vamos a visualizar los resultados.
+
+```{r, echo=FALSE}
+ggplot(df_pca, aes(x = PC1, y = PC2, color = genres)) + geom_point()
+```
+
+```{r, echo=FALSE}
+ggplot(df_pca, aes(x = PC1, y = genres)) + geom_point()
+```
+
+Vemos que los gráficos generados son prácticamente identicos a los obtenidos por el método artesanal. Sí que en el primero, se pueden apreciar grupos divididos, por valores distintos, en el eje de la primera componente, paralelos entre sí.
+
+```{r, echo=FALSE}
+biplot(df_acp_cov, xlabs = rep("·", nrow(df_pca)))
+```
+
+En esta gráfica, lo relevante son los ejes y las flechas, más que las observaciones, y es que solo dos variables tienen relevancia, "rating_count" para PC1 y "num_ratings" para PC2.
+
+Mayor detalle de estas tres figuras en $Figura10.4$, $Figura10.5$ y $Figura10.6$.
+
+Por terminar con este apartado, vamos a utilizar la matriz de correlaciones y no la de covarianzas para realizar el análisis.
+
+```{r}
+df_acp_corr <- prcomp(X, scale. = TRUE)
+df_acp_corr
+summary(df_acp_corr)
+plot(df_acp_corr, type = "l", pch = 19)
+```
+
+Aquí si que es más complicado decidirse, y podría paracer que lo mejor es k=6, bueno... una menos porque el cambio se produce en el 5, pero por sencillez cogeremos k = 2.
+
+```{r}
+df_pca <- good_reads_mostCommonGenres[,c(variables_numericas, "genres")]
+df_pca <- cbind(df_pca, df_acp_corr$x[, 1:2])
+ggplot(df_pca, aes(x = PC1, y = PC2, color = genres, fill = genres)) +
+  geom_point()
+```
+
+Realmente no se puede sacar demasiado en claso de esta gráfica, se nota que nuestras variables numéricas no pueden ser negativas y son cortadas en ese eje. No obstante, se pueden apreciar las tendencias de los géneros, pocos puntos veres o azules (historicos y romance en ese orden) se llegan a distanciar del conglomerado, mientras que hay aglomeraciones estiradas paralelas de géneros destacados, como fantasía o ficción.
+
+Figura con mayor detalle en $Figura10.7$.
 
 ## 3. Análisis Factorial (AF)
 
-```{r}
+Importación de paquetes.
 
+```{r}
+if(!require(psych)){
+  install.packages("psych")
+  require(psych)
+}
+
+if(!require(ggplot2)){
+  install.packages("ggplot2")
+  require(ggplot2)
+}
 ```
+
+Importamos los datos.
+
+```{r}
+ruta_read_rda <- "../Datos/Procesados/good_reads_final_preprocesado.rda"
+load(file = ruta_read_rda)
+```
+
+Valores nulos (identificación e imputación).
+
+```{r}
+apply(good_reads, 2, function(x) return(sum(is.na(x))))
+good_reads$pages[is.na(good_reads$pages)] <- mean(good_reads$pages, na.rm=TRUE)
+good_reads$publish_year[is.na(good_reads$publish_year)] <- median(good_reads$publish_year, na.rm=TRUE)
+```
+
+Selección de variables numéricas.
+
+```{r}
+variables_numericas <- c("author_average_rating",
+                         "author_rating_count",
+                         "author_review_count",
+                         "book_average_rating",
+                         "num_ratings",
+                         "num_reviews",
+                         "pages",
+                         "publish_year")
+
+X <- good_reads[variables_numericas]
+```
+
+Análisis factorial "Artesanal" Conseguimos el número de variables y la matriz de correlaciones de nuestros datos.
+
+```{r}
+p <- ncol(X)
+R <- cor(X)
+R
+```
+
+Calculamos los valores y vectores propios.
+
+```{r}
+Rprop <- eigen(R)
+Rprop
+Rprop$vectors %*% diag(Rprop$values) %*% t(Rprop$vectors)
+```
+
+Porcentajes acumulados de varianza.
+
+```{r}
+cumvar <- 100*cumsum(Rprop$values)/p
+```
+
+Método del codo para decidir cuantos factores nos quedamos.
+
+```{r, echo=FALSE}
+plot(
+  1:p,
+  100 - cumvar,
+  type = "b",
+  pch = 19,
+  xlab = "Variables",
+  ylab = "Varianza acumulada"
+)
+```
+
+Elegimos 2 factores y obtenemos la estimación de la matriz de cargas
+
+```{r}
+m <- 2
+sum(Rprop$values[(m + 1):p]) # cota de la suma de cuadrados de la matriz residual
+L <- (rep(1, p) %*% t(sqrt(Rprop$values[1:m]))) * Rprop$vectors[, 1:m]
+rownames(L) <- colnames(X)
+L
+```
+
+La primera variable habla de la popularidad y la segunda del nivel. Donde en la primera vemos que todas las variables relevantes son el número de reseñas y valoraciones, tanto como para el autor, como para la propia obra. Y la segunda, vemos que las dos variables más importantes hacen referencia a la puntuación media, tanto del autor, como de la obra.
+
+Comunalidades:
+
+```{r, echo=FALSE}
+h2 <- rowSums(L^2)
+h2
+plot(
+  1:p,
+  h2,
+  pch = 19,
+  xlab = "Variables",
+  ylab = "Comunalidad"
+)
+```
+
+Vemos que las dos últimas variables "pages" y "publish_year" tienen una comunalidad prácticamente nula, y probablemente una unicidad muy elevada, eso lo veremos más adelante. El resto de variables tienen la comunalidad bastante alta, siendo las que más tienen "author_average_rating" y "book_average_rating".
+
+Unicidades:
+
+```{r}
+psi <- 1 - h2
+psi
+```
+
+```{r, echo=FALSE}
+plot(
+  1:p,
+  psi,
+  pch = 19,
+  xlab = "Variables",
+  ylab = "unicidad"
+)
+```
+
+Como comentábamos antes, los valores se han intercambiado. En resumen, el modelo está bien ajustado, solo que dos variables se quedan bastante fuera. Recordemos que debemos tener un equilibrio entre tener poca unicidad y pocos factores. Lo suyo sería ver qué pasa si añadimos un tercer factor, pero eso es mejor que lo probemos cuando usemos la función "principal".
+
+```{r, echo=FALSE}
+ggplot(data.frame(cbind(1:p, h2)), aes(x = V1, y = h2, fill=1:p)) +
+  geom_bar(stat='identity')
+```
+
+Vemos en este diagrama de barras, las seis variables con alta comunialidad y las dos variables con baja comunalidad.
+
+Estimación de la matriz de correlaciones para posteriormente calcular los residuos.
+
+```{r}
+Rbarra <- L %*% t(L) + diag(psi)
+Rbarra
+```
+
+Calculamos la matriz residual y a partir de ella su suma de cuadrados para tener una medida de calidad de ajuste.
+
+```{r}
+D <- R - Rbarra
+sum(D^2)
+```
+
+Ahora vamos a comprobar que efectivamente se cumple que esta medida es menor que la suma de los 8 valores porpios de nuestra matriz.
+
+```{r}
+sum(D^2) <= sum(Rprop$values[3:p])
+```
+
+Vemos que se cumple y por ello, nuestra elección de dos factores es acertada, sí solo hubiesemos cogido uno puede que esto no se cumplíese.
+
+Ahora vamos a mostrar gráficamente las distintas cargas en el espacio de los factores.
+
+```{r, echo=FALSE}
+L <- as.data.frame(L)
+rownames(L) <- colnames(X)
+colnames(L) <- c("F1", "F2")
+ggplot(L, aes(x = F1, y = F2, label = rownames(L))) +
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_vline(xintercept = 0, lty = 2) +
+  geom_text()
+```
+
+Vemos que hay dos variables que se quedan en tierra de nadie, tanto publish_year, como pages. Y que las variables que comentabamos anteriormente son las que determinan cada uno de los factores, dándonos información sobre popularidad (F1) y sobre nivel o valoración (F2).
+
+Podemos ver la figura con más detalle en $Figura11.1$.
+
+Aplicamos la rotación para maximizar la varianza total.
+
+```{r}
+vmax_L <- varimax(as.matrix(L))
+```
+
+Y comprobamos los valores rotados.
+
+```{r, echo=FALSE}
+Lstar <- as.data.frame(vmax_L$loadings[, 1:m])
+rownames(Lstar) <- colnames(X)
+colnames(Lstar) <- c("F1", "F2")
+ggplot(Lstar, aes(x = F1, y = F2, label = rownames(Lstar))) +
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_vline(xintercept = 0, lty = 2) +
+  geom_text()
+```
+
+Vemos que las cargas se han ajustado aún más a los ejes de cada factor y nuestras variables con alta unicidad poco siguen aportando.
+
+Ahora, vamos a aplicar la función principal para hacer todo lo anterior de una manera mucho más cómoda y sencilla.
+
+Antes cargamos los datos en X para mayor completitud.
+
+```{r}
+X <- good_reads[variables_numericas]
+```
+
+Comenzamos como antes con dos factores y sin rotación.
+
+```{r}
+mt_af <- principal(X, nfactors = 2, rotate = "none")
+mt_af
+mt_af$values
+mt_af$loadings
+mt_af$communality
+```
+
+Vamos a volver a mostrar las comunalidades y ver si las dos variables que tenían baja comunlaidad efectivamente mejorar si aumentamos el número de factores.
+
+```{r, warning=FALSE}
+ggplot(data.frame(cbind(1:p, mt_af$communality)), aes(x = X1, y = X2, fill=1:p)) +
+  geom_bar(stat='identity')
+```
+
+Vemos que estas dos variables: año de publicación y número de páginas vuelven a tener poca comunalidad. De nuevo, vamos a aumentar el número de factores en pos de que mejoren.
+
+```{r, echo=FALSE}
+mt_af_3 <- principal(X, nfactors = 3, rotate = "none")
+ggplot(data.frame(cbind(1:p, mt_af_3$communality)), aes(x = X1, y = X2, fill=1:p)) +
+  geom_bar(stat='identity')
+```
+
+Como podemos comprobar, ahora sí que tenemos bajas unicidades, el número de páginas sigue teniendo una comunalidad baja, pero en general hemos mejorado estos números.
+
+Podríamos seguir aumentando el número de factores y con ello mejorarían las comunalidades pero esto conllevaría un desequilibrío, ya que nuestro objetivo es minimizar el número de éstos.
+
+```{r, echo=FALSE}
+mt_af_4 <- principal(X, nfactors = 4, rotate = "none")
+ggplot(data.frame(cbind(1:p, mt_af_4$communality)), aes(x = X1, y = X2, fill=1:p)) +
+  geom_bar(stat='identity')
+```
+
+Como podemos comprobar, con 4 factores, ninguna variable tiene la comunalidad baja pero decidimos quedarnos con 3 para tratar de encontrar un equilibrio. Como hemos decidido quedarnos con tres factores, vamos a mostrar de nuevo para estos, los valores de cada variable:
+
+```{r}
+mt_af_3$loadings
+```
+
+Vemos que el primer factor hace referencia de nuevo a la popularidad, el segundo a el nivel o aprobación media y el tercero a libros con pocas páginas y recientes, que puede tener sentido para encontrar aquellos libros que son más o menos modernos y que no tienenuna barbaridad de páginas.
+
+Ahora comprobemos la complejidad de Hoffman para cada variables, de modo que búscamos que cada una tenga un número cercano a cero.
+
+Manera directa:
+
+```{r}
+mt_af_3$complexity
+```
+
+Manera artesanal:
+
+```{r}
+indice_Hoffman <- function(x) (sum(x^2)^2)/sum(x^4)
+comp <- apply(mt_af_3$loadings, 1, indice_Hoffman)
+comp
+```
+
+Calculamos la complejidad media.
+
+```{r}
+mean(comp)
+```
+
+Como vemos, tenemos una complejidad media de 1, lo cual es casi perfecto. Y en general, vemos que casi todas las variables tienen una complejidad cercana a 1, las más altas son: pages y author_average_rating.
+
+Vemos como aportan cada una de las variables a cada factor con la siguiente función.
+
+```{r}
+fa.diagram(mt_af_3)
+```
+
+Figura con más detalle en $Figura11.2$.
+
+Y ya por último, vamos a mostrar las comunalidades pero aplicando la rotación varimax.
+
+```{r}
+mt_af_3R <- principal(X, nfactors = 3)
+mt_af_3R
+```
+
+```{r, echo=FALSE}
+ggplot(data.frame(cbind(1:p, mt_af_3R$communality)), aes(x = X1, y = X2, fill=1:p)) +
+  geom_bar(stat='identity')
+```
+
+Vemos que prácticamente no varia al aplicar esta rotación. Mostramos el digrama de mayor carga para cada variable.
+
+```{r}
+fa.diagram(mt_af_3R)
+```
+
+Como último apartado, vamos a comprobar los residuos de un análisis con una sola componente, para ver si es suficiente o no.
+
+```{r}
+L_1 <- (rep(1, p) %*% t(sqrt(Rprop$values[1:1]))) * Rprop$vectors[, 1:1]
+h2_1 <- rowSums(L_1^2)
+psi_1 <- 1 - h2_1
+D_1 <- R - (L_1 %*%t(L_1) + diag(psi_1))
+sum(D_1^2)
+```
+
+Vemos el error para dos factores.
+
+```{r}
+sum(D^2)
+```
+
+Como podemos comprobar, efectivamente no sería un buen ajuste, ya que la hemos cogido un solo factor y empeora mucho el error, con residuos muy altos.
 
 ## 4. Análisis de Conglomerados (AC)
 
-```{r}
+En este apartado realizaremos un análisis de conglomerados y para esto aplicaremos el método de las
 
+K-medias.
+
+Importamos los paquetes.
+
+```{r}
+if(!require(ggplot2)){
+  install.packages("ggplot2")
+  require(ggplot2)
+}
 ```
+
+Importación de los datos.
+
+```{r}
+ruta_read_rda <- "../Datos/Procesados/good_reads_final_preprocesado.rda"
+load(file = ruta_read_rda)
+```
+
+Valores nulos (identificación e imputación).
+
+```{r}
+apply(good_reads, 2, function(x) return(sum(is.na(x))))
+good_reads$pages[is.na(good_reads$pages)] <- mean(good_reads$pages, na.rm=TRUE)
+good_reads$publish_year[is.na(good_reads$publish_year)] <- median(good_reads$publish_year, na.rm=TRUE)
+```
+
+Selección de variables numéricas.
+
+```{r}
+variables_numericas <- c("author_average_rating",
+                         "author_rating_count",
+                         "author_review_count",
+                         "book_average_rating",
+                         "num_ratings",
+                         "num_reviews",
+                         "pages",
+                         "publish_year")
+```
+
+Para poder mostrar los resultados, evidentemente, necesitamos dos dimensiones; para conseguirlas vamos a recuperar los resultados obtenidos del apartado 2 análisis de componentes principales, y así poder proyectar nuestros datos a dos dimensiones.
+
+```{r}
+X <- good_reads[variables_numericas]
+df_pca <- prcomp(X, scale. = TRUE)
+X_pca <- data.frame(df_pca$x[, 1:2])
+```
+
+Primero, al igual que vimos en la práctica informática vamos a hacer el método iterativo para comprobar como se van recalculando los centroides y con ello reagrupando los puntos.
+
+Mostramos los puntos.
+
+```{r, echo=FALSE}
+plot(X_pca, pch = 19, col = 2)
+```
+
+Seleccionamos el número de grupos, lo haremos con k=2.
+
+```{r}
+K <- 2
+```
+
+Vamos a fijar una semilla.
+
+```{r}
+set.seed(123)
+```
+
+Calculamos los centroides inicales.
+
+```{r}
+centroides <- X_pca[sample(dim(X_pca)[1], K), ]
+rownames(centroides) <- 1:K
+centroides
+```
+
+```{r, echo=FALSE}
+plot(X_pca, pch = 19, col = 2)
+points(centroides, pch = 4, cex = 4, lwd = 4, col = 3)
+```
+
+Vemos que los dos centroides han caido entre la "masa" donde se aglomeran casi todos los puntos.
+
+-   Primera iteración:
+
+```{r}
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+head(X_pca)
+```
+
+Asignación de clúster; aquel cuyo centroide esté más cerca.
+
+```{r}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+head(X_pca)
+```
+
+Actualización de centroides:
+
+```{r}
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+centroides
+```
+
+Mostramos los resultados:
+
+```{r, echo=FALSE}
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+Vemos los dos grupos que se han generado, el verde y el rosa. Ahora vamos a ir iterando hasta que se estabilicen los clústeres.
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+head(X_pca)
+```
+
+Comprobamos la varianza total de nuestros clústeres
+
+```{r}
+sum(X_pca$dist_centroid^2)
+```
+
+Vemos que nuestra varianza es alta, vamos a ir iterando y viendo como se reduce.
+
+-   Iteración 2:
+
+Antes de proceder a ella vamos a fijar un epsilon, cuando la resta entre la vaianza total de una iteración no supere a este epsilon en la siguiente pararemos.
+
+```{r}
+epsilon = 10
+var_ant <- sum(X_pca$dist_centroid^2)
+
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+head(X_pca)
+```
+
+```{r}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+head(X_pca)
+```
+
+```{r}
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+centroides
+```
+
+```{r, echo=FALSE}
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+head(X_pca)
+```
+
+Comprobamos la varianza total de nuestros clústeres:
+
+```{r}
+sum(X_pca$dist_centroid^2)
+```
+
+Comprobamos nuestro criterio de parada:
+
+```{r}
+var_ant - sum(X_pca$dist_centroid^2) < epsilon
+```
+
+Vemos que no se cumple, seguimos. Aunque a partir de ahora solo mostraremos el gráfico, la varianza total y si se cumple o no la condición.
+
+-    Iteración 3:
+
+```{r, echo=FALSE}
+var_ant <- sum(X_pca$dist_centroid^2)
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+sum(X_pca$dist_centroid^2)
+```
+
+```{r}
+var_ant - sum(X_pca$dist_centroid^2) < epsilon
+```
+
+Sigue sin cumplirse, así que iteraremos hasta que lo haga.
+
+-    Iteración 4:
+
+```{r, echo=FALSE}
+var_ant <- sum(X_pca$dist_centroid^2)
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+sum(X_pca$dist_centroid^2)
+```
+
+```{r}
+var_ant - sum(X_pca$dist_centroid^2) < epsilon
+```
+
+-    Iteración 5:
+
+```{r, echo=FALSE}
+var_ant <- sum(X_pca$dist_centroid^2)
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+sum(X_pca$dist_centroid^2)
+```
+
+```{r}
+var_ant - sum(X_pca$dist_centroid^2) < epsilon
+```
+
+-   Iteración 6:
+
+```{r, echo=FALSE}
+var_ant <- sum(X_pca$dist_centroid^2)
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+sum(X_pca$dist_centroid^2)
+```
+
+```{r}
+var_ant - sum(X_pca$dist_centroid^2) < epsilon
+```
+
+-    Iteración 7:
+
+```{r, echo=FALSE}
+var_ant <- sum(X_pca$dist_centroid^2)
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+sum(X_pca$dist_centroid^2)
+```
+
+```{r}
+var_ant - sum(X_pca$dist_centroid^2) < epsilon
+```
+
+-    Iteración 8
+
+```{r, echo=FALSE}
+var_ant <- sum(X_pca$dist_centroid^2)
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+sum(X_pca$dist_centroid^2)
+```
+
+```{r}
+var_ant - sum(X_pca$dist_centroid^2) < epsilon
+```
+
+-    Iteración 9
+
+```{r, echo=FALSE}
+var_ant <- sum(X_pca$dist_centroid^2)
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+sum(X_pca$dist_centroid^2)
+```
+
+```{r}
+var_ant - sum(X_pca$dist_centroid^2) < epsilon
+```
+
+-   Iteración 10
+
+```{r, echo=FALSE}
+var_ant <- sum(X_pca$dist_centroid^2)
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+sum(X_pca$dist_centroid^2)
+```
+
+```{r}
+var_ant - sum(X_pca$dist_centroid^2) < epsilon
+```
+
+-    Iteración 11
+
+```{r, echo=FALSE}
+var_ant <- sum(X_pca$dist_centroid^2)
+for(i in 1:K){
+  txt <- paste("X_pca$distancia",
+               i,
+               "<- sqrt((X_pca$PC1 - centroides$PC1[",
+               i,
+               "])^2 + (X_pca$PC2 - centroides$PC2[",
+               i,
+               "])^2)",
+               sep = "")
+  eval(parse(text = txt))
+}
+X_pca$cluster <- apply(X_pca[, 3:(2 + K)], 1, which.min)
+centroides <- aggregate(cbind(PC1, PC2) ~ cluster,
+                        data = X_pca,
+                        mean)
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+```{r}
+X_pca$dist_centroid <- apply(X_pca[, 3:(2 + K)], 1, min)
+sum(X_pca$dist_centroid^2)
+```
+
+```{r}
+var_ant - sum(X_pca$dist_centroid^2) < epsilon
+```
+
+Como podemos comprobar, nuestro criterio de parada se ha cumplido, por lo tanto vamos a parar.
+
+Los grupos generado finales son:
+
+```{r, echo=FALSE}
+plot(X_pca[, 1:2], pch = 19, col = X_pca$cluster + 1)
+points(centroides[, 2:3], pch = 4, cex = 4, lwd = 4,
+       col = centroides$cluster + 1)
+```
+
+Ahora vamos a utilizar la función kmeans y comparar resultados.
+
+```{r}
+datos_km <- kmeans(X_pca[, 1:2], 2, nstart = 1e3)
+```
+
+Calculamos la inercia del modelo
+
+```{r}
+datos_km$tot.withinss
+```
+
+Vemos que es menor que la que hemos conseguido nosotros de manera artesanal.
+
+Mostramos los resultados:
+
+```{r, echo=FALSE}
+plot(X_pca[, 1:2], pch = 19, col = datos_km$cluster + 1)
+```
+
+Vemos que los grupos se han generado dividido por los valores de PC1, es decir, los libros con más valoraciones o más populares de los que no lo son. Mientras que en nuestro otro caso se dividian por los valores de PC2, dividiendo grupos de libros con valoraciones más altas, frente a los que tienen valoraciones más bajas.
+
+## 5. Conclusiones
+
+Trabajo terminado, como último apartado vamos, de una manera muy breve, a concluir los resultados conseguidos. Primero, no solo hemos conseguido familiarizarnos mejor con el entorno de RStudio, crenando proyectos y usando diferentes librerías, sino que hemos podido mejorar y desarrollar nuestras habilidades manejando R.
+
+Segundo, trabajando con unos datos exógenos que no habíamos trabajado previamente, hemos aprendido a manejarnos con datos desconocidos y con un tema que nos parece interesante, como es el mundo de la literatura.
+
+Por último, poder aplicar todos los conceptos vistos en la asignatura, hemos repasado su contenido teórico y aplicado éstos en nuestros datos, de manera que hemos logrado conclusiónes interesantes.
+
+Gracias por la oportunidad realizando este trabajo, ha sido un placer.

@@ -19,4 +19,3 @@ mcov <- function(X){
   n <- dim(X)[1]
   return(cov(X)*(n - 1)/n)
 }
-
